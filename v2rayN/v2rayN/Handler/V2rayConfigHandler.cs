@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -336,6 +337,41 @@ namespace v2rayN.Handler
         }
 
         /// <summary>
+        /// Forcibly resolve the domain name to ip, solve DNS pollution
+        /// </summary>
+        /// <param name="config"></param>
+        /// <returns></returns>
+        public static string ResolveDomainNames(string url)
+        {
+            try
+            {
+                var urlString = $"https://101.101.101.101/dns-query?name={url}&type=A";
+                var dnsResult = new DownloadHandle().DownloadStringAsync(urlString, true, string.Empty).GetAwaiter().GetResult();
+                if (string.IsNullOrWhiteSpace(dnsResult))
+                {
+                    return url;
+                }
+                var dnsData = JsonConvert.DeserializeObject<DNSQuery>(dnsResult);
+                if (dnsData.Answer == null)
+                {
+                    return url;
+                }
+                var ans = dnsData.Answer.FirstOrDefault();
+
+                if (string.IsNullOrWhiteSpace(ans.data))
+                {
+                    return url;
+                }
+                return ans.data;  // Forcibly resolve the domain name to ip, solve DNS pollution
+            }
+            catch (Exception ex)
+            {
+                UI.ShowWarning($"{ex.Message}\n{ex.StackTrace}");
+                return url;
+            }
+        }
+
+        /// <summary>
         /// vmess协议服务器配置
         /// </summary>
         /// <param name="node"></param>
@@ -360,7 +396,7 @@ namespace v2rayN.Handler
                         vnextItem = outbound.settings.vnext[0];
                     }
                     //远程服务器地址和端口
-                    vnextItem.address = node.address;
+                    vnextItem.address = ResolveDomainNames(node.address);
                     vnextItem.port = node.port;
 
                     UsersItem usersItem;
@@ -408,7 +444,7 @@ namespace v2rayN.Handler
                         serversItem = outbound.settings.servers[0];
                     }
                     //远程服务器地址和端口
-                    serversItem.address = node.address;
+                    serversItem.address = ResolveDomainNames(node.address);
                     serversItem.port = node.port;
                     serversItem.password = node.id;
                     serversItem.method = LazyConfig.Instance.GetShadowsocksSecuritys(node).Contains(node.security) ? node.security : "none";
@@ -438,7 +474,7 @@ namespace v2rayN.Handler
                         serversItem = outbound.settings.servers[0];
                     }
                     //远程服务器地址和端口
-                    serversItem.address = node.address;
+                    serversItem.address = ResolveDomainNames(node.address);
                     serversItem.port = node.port;
                     serversItem.method = null;
                     serversItem.password = null;
@@ -475,7 +511,7 @@ namespace v2rayN.Handler
                         vnextItem = outbound.settings.vnext[0];
                     }
                     //远程服务器地址和端口
-                    vnextItem.address = node.address;
+                    vnextItem.address = ResolveDomainNames(node.address);
                     vnextItem.port = node.port;
 
                     UsersItem usersItem;
@@ -542,7 +578,7 @@ namespace v2rayN.Handler
                         serversItem = outbound.settings.servers[0];
                     }
                     //远程服务器地址和端口
-                    serversItem.address = node.address;
+                    serversItem.address = ResolveDomainNames(node.address);
                     serversItem.port = node.port;
                     serversItem.password = node.id;
                     serversItem.flow = string.Empty;
